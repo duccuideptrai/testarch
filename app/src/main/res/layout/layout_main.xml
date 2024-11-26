@@ -4,11 +4,7 @@
     android:layout_height="fill_parent"
     android:orientation="vertical" >
     <FrameLayout
-        android:id="@+id/main_content"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-    <FrameLayout
-        android:id="@+id/child_content"
+        android:id="@+id/main_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 </FrameLayout>

@@ -11,7 +11,7 @@ class ReviewApiRepositoryImpl @Inject constructor(): ReviewApiRepository {
 
     override fun getReviews(movieId: Int, pageNo: Int): List<Review> {
         val startIndex = (pageNo - 1) * MAX_PAGE_SIZE
-        val endIndex = startIndex + MAX_PAGE_SIZE
+        val endIndex = startIndex + MAX_PAGE_SIZE - 1
         val reviews = mutableListOf<Review>()
         for (i in startIndex..endIndex) {
             val review = Review(
@@ -24,6 +24,7 @@ class ReviewApiRepositoryImpl @Inject constructor(): ReviewApiRepository {
             )
             reviews.add(review)
         }
+        Thread.sleep(100) // Simulate network delay
         return reviews
     }
 

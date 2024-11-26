@@ -4,7 +4,9 @@ import com.example.testarch.ui.movie_detail.data.ReviewApiRepositoryImpl
 import com.example.testarch.ui.movie_detail.data.ReviewStorageRepositoryImpl
 import com.example.testarch.ui.movie_detail.domain.repository.ReviewApiRepository
 import com.example.testarch.ui.movie_detail.domain.repository.ReviewStorageRepository
+import com.example.testarch.ui.movie_detail.domain.usercase.GetMyReviewFlowUseCase
 import com.example.testarch.ui.movie_detail.domain.usercase.GetReviewDataSourceFlowUserCase
+import com.example.testarch.ui.movie_detail.domain.usercase.GetReviewPageFlowUserCase
 import com.example.testarch.ui.movie_detail.domain.usercase.GetReviewsUserCase
 import dagger.Module
 import dagger.Provides
@@ -42,5 +44,19 @@ class ReviewDi {
         reviewStorageRepository: ReviewStorageRepository
     ): GetReviewDataSourceFlowUserCase {
         return GetReviewDataSourceFlowUserCase(reviewStorageRepository)
+    }
+
+    @Provides
+    fun provideGetReviewPageFlowUserCase(
+        reviewApiRepository: ReviewApiRepository
+    ): GetReviewPageFlowUserCase {
+        return GetReviewPageFlowUserCase(reviewApiRepository)
+    }
+
+    @Provides
+    fun provideGetMyReviewFlowUseCase(
+        reviewApiRepository: ReviewApiRepository
+    ): GetMyReviewFlowUseCase {
+        return GetMyReviewFlowUseCase(reviewApiRepository)
     }
 }

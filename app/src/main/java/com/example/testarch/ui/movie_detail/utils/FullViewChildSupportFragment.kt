@@ -7,17 +7,51 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.example.testarch.R
 
 abstract class FullViewChildSupportFragment: Fragment() {
+    fun move2ChildFragment(fragment: Fragment) {
+        val transaction = childFragmentManager.beginTransaction()
+        transaction.replace(R.id.main_layout, fragment)
+        transaction.addToBackStack(fragment::class.simpleName)
+        transaction.commit()
+    }
+
+    fun move2Fragment(fragment: Fragment, addToBackStack: Boolean = true) {
+        val transaction = requireActivity().supportFragmentManager.beginTransaction()
+        transaction.replace(R.id.main_layout, fragment)
+        if (addToBackStack) {
+            transaction.addToBackStack(null)
+        }
+        transaction.commit()
+    }
+
+    fun move2FragmentByDialog(fragmentDialog: DialogFragment, addToBackStack: Boolean = false) {
+        val transaction = childFragmentManager.beginTransaction()
+        fragmentDialog.show(transaction, null)
+    }
+
+    inline fun <reified T: Any> findSupportParentFragment(): Fragment {
+        var currentParentFragment = parentFragment
+
+        while (currentParentFragment!= null) {
+            if (currentParentFragment is T) {
+                return currentParentFragment
+            }
+            currentParentFragment = currentParentFragment.parentFragment
+        }
+        throw IllegalStateException("No parent fragment found for interface")
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_main, container, false)
-        view.findViewById<ViewGroup>(R.id.main_content).addView(applyMainView())
+        val view = inflater.inflate(R.layout.layout_main, container, false)
+        view.findViewById<ViewGroup>(R.id.main_layout).addView(applyMainView())
         return view
     }
 
@@ -36,7 +70,12 @@ abstract class FullViewChildSupportFragment: Fragment() {
                     // Delete parent fragment
                     parentFragmentManager.popBackStack()
                 } else {
-                    requireActivity().finish()
+                    val fragmentManager = requireActivity().supportFragmentManager
+                    if (fragmentManager.backStackEntryCount > 0) {
+                        fragmentManager.popBackStack()
+                    } else {
+                        requireActivity().finish()
+                    }
                 }
             }
         }
@@ -89,18 +128,5 @@ abstract class FullViewChildSupportFragment: Fragment() {
     override fun onDetach() {
         super.onDetach()
         Log.d("MyFragment", "onDetach")
-    }
-}
-
-fun FullViewChildSupportFragment.move2Fragment(fragment: Fragment, addToBackStack: Boolean = true) {
-    if (addToBackStack) {
-        val transaction = childFragmentManager.beginTransaction()
-        transaction.replace(R.id.main_content, fragment)
-        transaction.addToBackStack(fragment::class.simpleName)
-        transaction.commit()
-    } else {
-        val transaction = requireActivity().supportFragmentManager.beginTransaction()
-        transaction.replace(R.id.main_layout, fragment)
-        transaction.commit()
     }
 }

@@ -1,36 +1,36 @@
 package com.example.testarch.ui.movie_detail
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.testarch.ui.movie_detail.domain.entity.Review
 import com.example.testarch.ui.movie_detail.utils.FullViewChildSupportFragment
-import com.example.testarch.ui.movie_detail.utils.move2Fragment
-import com.example.testarch.ui.movie_detail.utils.move2FragmentByDialog
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.properties.Delegates
 
@@ -38,8 +38,10 @@ object MovieDetailFragmentArgs {
     const val KEY_MOVIE_ID = "movieId"
 }
 
+interface ReviewDataHolder
+
 @AndroidEntryPoint
-class MovieDetailFragment: FullViewChildSupportFragment() {
+class MovieDetailFragment: FullViewChildSupportFragment(), ReviewDataHolder {
     companion object {
         fun newInstance(movieId: Int = 1) = MovieDetailFragment().apply {
             arguments = Bundle().apply {
@@ -55,15 +57,18 @@ class MovieDetailFragment: FullViewChildSupportFragment() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MaterialTheme {
-                    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+                    val reviews = viewModel.reviews.collectAsLazyPagingItems()
                     MovieDetail(
                         movieId = movieId,
                         reviews = reviews,
                         onClickReview = { index, _ ->
-                            move2Fragment(ReviewDetailPagerFragment.newInstance(pageNo = index))
+                            move2ChildFragment(ReviewDetailPagerFragment.newInstance(pageNo = index, movieId = movieId))
                         },
                         onClickTop = {
-                            move2Fragment(MovieDetailFragment.newInstance(movieId = 5), addToBackStack = false)
+                            move2Fragment(newInstance(movieId = 5))
+                        },
+                        onClickShowListReviews = {
+                            move2ChildFragment(ReviewListFragment.newInstance(movieId = movieId))
                         }
                     )
                 }
@@ -76,36 +81,15 @@ class MovieDetailFragment: FullViewChildSupportFragment() {
         movieId = arguments?.getInt(MovieDetailFragmentArgs.KEY_MOVIE_ID)?: 1
         viewModel.getReviews(movieId)
     }
-
-//    override fun onCreateView(
-//        inflater: LayoutInflater,
-//        container: ViewGroup?,
-//        savedInstanceState: Bundle?
-//    ): View {
-//        return ComposeView(requireContext()).apply {
-//            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-//            setContent {
-//                MaterialTheme {
-//                    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
-//                    MovieDetail(
-//                        movieId = movieId,
-//                        reviews = reviews,
-//                        onClick = { index, _ ->
-//                            move2FragmentByDialog(ReviewDetailPagerFragment.newInstance(pageNo = index))
-//                        }
-//                    )
-//                }
-//            }
-//        }
-//    }
 }
 
 @Composable
 fun MovieDetail(
     movieId: Int,
-    reviews: List<Review>,
+    reviews: LazyPagingItems<Review>,
     onClickReview: (Int, Review) -> Unit,
-    onClickTop: () -> Unit = {}
+    onClickTop: () -> Unit = {},
+    onClickShowListReviews: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -114,8 +98,10 @@ fun MovieDetail(
         content = { padding ->
             MovieDetailContent(
                 modifier = Modifier.padding(padding),
+                movieId = movieId,
                 reviews = reviews,
-                onClick = onClickReview
+                onClickAReview = onClickReview,
+                onClickShowListReviews = onClickShowListReviews
             )
         }
     )
@@ -124,36 +110,67 @@ fun MovieDetail(
 @Composable
 fun MovieDetailContent(
     modifier: Modifier = Modifier,
-    reviews: List<Review>,
-    onClick: (Int, Review) -> Unit
+    movieId: Int,
+    reviews: LazyPagingItems<Review>,
+    onClickAReview: (Int, Review) -> Unit,
+    onClickShowListReviews: () -> Unit
 ) {
-    LazyColumn(modifier = modifier) {
-        itemsIndexed(
-            items = reviews,
-            key = { _, review -> review.title }) { index, review ->
-            ClickableText(
-                text = AnnotatedString(review.title),
-                modifier = Modifier.padding(vertical = 8.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                onClick = { onClick(index, review) }
-            )
+    val state = rememberLazyListState()
+    LazyColumn(state = state, modifier = modifier) {
+        item(key = "movieId") {
+            Text(text = "MovieID: $movieId", style = MaterialTheme.typography.labelLarge)
+            HorizontalDivider()
+        }
+
+        for (index in 0..< reviews.itemCount.coerceAtMost(3)) {
+            item(key = "Review_$index") {
+                val review = reviews[index]!!
+                TextButton(onClick = { onClickAReview(index, review) }) {
+                    Text(text = review.title)
+                }
+            }
+        }
+
+        if (reviews.itemCount > 3) {
+            item(key = "show_reviews_list") {
+                Button(onClick = onClickShowListReviews) {
+                    Text(text = "View List Reviews")
+                }
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDetailTopBar(movieId: Int, onClick: () -> Unit = {}) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Movie Detail $movieId",
-            style = MaterialTheme.typography.titleLarge
-        )
-        Button(onClick = onClick) {
-            Text(text = "Click me!!!")
+    CenterAlignedTopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.primary),
+        title = {
+            Text(
+                text = "Movie Detail $movieId",
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        actions = {
+            IconButton(
+                onClick = onClick,
+                enabled = false,
+                colors = IconButtonDefaults.iconButtonColors().copy(
+                    contentColor = Color.Red,
+                    disabledContentColor = Color.Red.copy(alpha = 0.5f)
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    tint = LocalContentColor.current,
+                    contentDescription = ""
+                )
+            }
         }
-    }
+    )
 }
 
 @Composable
